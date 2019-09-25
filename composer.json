@@ -1,0 +1,23 @@
+{
+  "name": "pw/vclaim",
+  "description": "Bpjs Vclaim Integration",
+  "type": "library",
+  "version": "1.0.0",
+  "license": "MIT",
+  "require": {
+    "guzzlehttp/guzzle": "^6.3",
+    "symfony/var-dumper": "^3.4"
+  },
+  "authors": [
+    {
+      "name": "Purwadi",
+      "email": "purwadie97@gmail.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Bpjs\\Vclaim\\": "src/"
+    }
+  },
+  "minimum-stability": "dev"
+}
