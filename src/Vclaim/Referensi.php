@@ -1,8 +1,8 @@
 <?php
 
-namespace Bpjs\Vclaim\v1;
+namespace Pw\Bpjs\Vclaim;
 
-use Bpjs\Vclaim\BpjsIntegration;
+use Pw\Bpjs\BpjsIntegration;
 use GuzzleHttp\Exception\ClientException;
 
 class Referensi extends BpjsIntegration
@@ -51,6 +51,18 @@ class Referensi extends BpjsIntegration
     public function kecamatan($kdKabupaten)
     {
         $response = $this->get('referensi/kecamatan/kabupaten/'.$kdKabupaten);
+        return json_decode($response, true);
+    }
+    
+    public function diagnosaPrb()
+    {
+        $response = $this->get('referensi/diagnosaprb');
+        return json_decode($response, true);
+    }
+    
+    public function obatPrb($keyword)
+    {
+        $response = $this->get('referensi/obatprb/'.$keyword);
         return json_decode($response, true);
     }
     

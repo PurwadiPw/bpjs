@@ -1,35 +1,74 @@
 <?php
 
-namespace Bpjs\Vclaim;
+namespace Pw\Bpjs;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\RequestException;
+use LZCompressor\LZString;
 
 class BpjsIntegration
 {
+    /**
+     * Guzzle HTTP Client object
+     * @var \GuzzleHttp\Client
+     */
     public $client;
+
+    /**
+     * Request headers
+     * @var array
+     */
     public $headers;
 
-    // 1. X-cons-id
+    /**
+     * X-cons-id header value
+     * @var int
+     */
     public $cons_id;
 
-    // 2. X-Timestamp
+    /**
+     * X-Timestamp header value
+     * @var string
+     */
     public $timestamp;
 
-    // 3. X-Signature
+    /**
+     * X-Signature header value
+     * @var string
+     */
     public $signature;
+
+    /**
+     * @var string
+     */
     public $secret_key;
 
-    // 4. Base URL & Service Name
+    /**
+     * @var string
+     */
+    public $user_key;
+
+    /**
+     * @var string
+     */
     public $base_url;
+
+    /**
+     * @var string
+     */
     public $service_name;
+
+    /**
+     * @var string
+     */
+    private $decrypt_key;
 
     public function __construct()
     {
         $this->client = new Client([
             'verify' => false,
-            'timeout' => 30,
+            // 'timeout' => 1,
             // 'connect_timeout' => 15,
             'http_errors' => false,
         ]);
@@ -41,6 +80,9 @@ class BpjsIntegration
      * [
      *      'cons_id' => '12345',
      *      'secret_key' => '1234567890',
+     *      'user_key' => '1234567890',
+     *      'base_url' => 'https://xxxxxxxxxx.xx.xx',
+     *      'service_name' => 'xxxxxx-xxxx-xxx',
      * ]
      */
     public function initialize($config = [])
@@ -59,6 +101,7 @@ class BpjsIntegration
             'X-cons-id' => $this->cons_id,
             'X-Timestamp' => $this->timestamp,
             'X-Signature' => $this->signature,
+            'user_key' => $this->user_key,
         ];
         return $this;
     }
@@ -69,6 +112,9 @@ class BpjsIntegration
         $signature = hash_hmac('sha256', $data, $this->secret_key, true);
         $encodedSignature = base64_encode($signature);
         $this->signature = $encodedSignature;
+        
+        //decrypt_key
+        $this->decrypt_key = $this->cons_id . $this->secret_key . $this->timestamp;
         return $this;
     }
 
@@ -77,6 +123,39 @@ class BpjsIntegration
         date_default_timezone_set('UTC');
         $this->timestamp = strval(time() - strtotime('1970-01-01 00:00:00'));
         return $this;
+    }
+
+    protected function stringDecrypt($key, $string)
+    {
+        $encrypt_method = 'AES-256-CBC';
+
+        // hash
+        $key_hash = hex2bin(hash('sha256', $key));
+
+        // iv - encrypt method AES-256-CBC expects 16 bytes - else you will get a warning
+        $iv = substr(hex2bin(hash('sha256', $key)), 0, 16);
+
+        $output = openssl_decrypt(base64_decode($string), $encrypt_method, $key_hash, OPENSSL_RAW_DATA, $iv);
+
+        return $output;
+    }
+
+    protected function decompress($string)
+    {
+        return LZString::decompressFromEncodedURIComponent($string);
+    }
+
+    protected function decryptResponse($response)
+    {
+        if (strpos($this->service_name, 'vclaim') === 0) {
+          $responseVar = json_decode($response);
+          if (isset($responseVar->response)) {
+              $responseVar->response = json_decode($this->decompress($this->stringDecrypt($this->decrypt_key, $responseVar->response)), true);
+          }
+
+          return json_encode($responseVar);
+        }
+        return $response;
     }
 
     public function timeoutResponse()
@@ -98,6 +177,7 @@ class BpjsIntegration
 
         try {
             $response = $this->client->request('GET', $url, ['headers' => $this->headers])->getBody()->getContents();
+            $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
         } catch (RequestException $e) {
@@ -117,6 +197,7 @@ class BpjsIntegration
         }
         try {
             $response = $this->client->request('POST', $url, ['headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
         } catch (RequestException $e) {
@@ -133,6 +214,7 @@ class BpjsIntegration
         $this->headers['Content-Type'] = 'Application/x-www-form-urlencoded';
         try {
             $response = $this->client->request('PUT', $url, ['headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
         } catch (RequestException $e) {
@@ -149,6 +231,7 @@ class BpjsIntegration
         $this->headers['Content-Type'] = 'Application/x-www-form-urlencoded';
         try {
             $response = $this->client->request('DELETE', $url, ['headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
         } catch (RequestException $e) {

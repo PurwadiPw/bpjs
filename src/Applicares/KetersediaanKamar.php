@@ -1,8 +1,8 @@
 <?php
 
-namespace Bpjs\Vclaim\Applicares;
+namespace Pw\Bpjs\Applicares;
 
-use Bpjs\Vclaim\BpjsIntegration;
+use Pw\Bpjs\BpjsIntegration;
 use GuzzleHttp\Exception\ClientException;
 
 class KetersediaanKamar extends BpjsIntegration
