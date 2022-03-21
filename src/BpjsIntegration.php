@@ -147,7 +147,7 @@ class BpjsIntegration
 
     protected function decryptResponse($response)
     {
-        if (strpos($this->service_name, 'vclaim') === 0) {
+        if (strpos($this->service_name, 'vclaim') === 0 || strpos($this->service_name, 'antreanrs') === 0) {
           $responseVar = json_decode($response);
           if (isset($responseVar->response)) {
               $responseVar->response = json_decode($this->decompress($this->stringDecrypt($this->decrypt_key, $responseVar->response)), true);
