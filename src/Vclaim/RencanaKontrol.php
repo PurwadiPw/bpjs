@@ -56,7 +56,7 @@ class RencanaKontrol extends BpjsIntegration
 
     public function dataSuratKontrol($noKartu)
     {
-		$bln = date("m");
+		$bln = date("m"); 
 		$thn = date("Y");
 		$formatFilter = '1';
 		
