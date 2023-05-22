@@ -94,4 +94,10 @@ class Rujukan extends BpjsIntegration
         $response = $this->get('Rujukan/ListSarana/PPKRujukan/'.$kodePpk);
         return json_decode($response, true);
     }
+    
+    public function jumlahSepRujukan($jenisRujukan, $noRujukan)
+    {
+        $response = $this->get('Rujukan/JumlahSEP/'.$jenisRujukan.'/'.$noRujukan);
+        return json_decode($response, true);
+    }
 }
