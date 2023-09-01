@@ -76,4 +76,16 @@ class Antrean extends BpjsIntegration
         $response = $this->get('dashboard/waktutunggu/bulan/'.$bulan.'/tahun/'.$tahun.'/'.$waktu);
         return json_decode($response, true);
     }
+    
+    public function antreanPerTgl($tgl)
+    {
+        $response = $this->get('antrean/pendaftaran/tanggal/'.$tgl);
+        return json_decode($response, true);
+    }
+    
+    public function antreanPerKodeBooking($kodebooking)
+    {
+        $response = $this->get('antrean/pendaftaran/kodebooking/'.$kodebooking);
+        return json_decode($response, true);
+    }
 }

@@ -95,6 +95,12 @@ class Rujukan extends BpjsIntegration
         return json_decode($response, true);
     }
     
+    public function listRujukanKeluarRs($tglMulai, $tglMulai)
+    {
+        $response = $this->get('Rujukan/Keluar/List/tglMulai/'.$tglMulai.'/tglAkhir/'.$tglMulai);
+        return json_decode($response, true);
+    }
+    
     public function jumlahSepRujukan($jenisRujukan, $noRujukan)
     {
         $response = $this->get('Rujukan/JumlahSEP/'.$jenisRujukan.'/'.$noRujukan);

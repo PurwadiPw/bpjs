@@ -163,7 +163,7 @@ class BpjsIntegration
         $output = [
             'metaData' => [
                 'code' => '201',
-                'message' => 'Koneksi ke server BPJS bermasalah. Harap hubungi IT RS.',
+                'message' => 'Koneksi ke server BPJS bermasalah. Silahkan Coba Lagi Setelah Beberapa Saat.',
             ],
             'response' => null,
         ];
@@ -176,7 +176,7 @@ class BpjsIntegration
         $this->headers['Content-Type'] = 'application/json; charset=utf-8';
 
         try {
-            $response = $this->client->request('GET', $url, ['headers' => $this->headers])->getBody()->getContents();
+            $response = $this->client->request('GET', $url, ['timeout' => 6,'headers' => $this->headers])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
@@ -196,7 +196,7 @@ class BpjsIntegration
             $this->headers['Content-Type'] = $header;
         }
         try {
-            $response = $this->client->request('POST', $url, ['headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('POST', $url, ['timeout' => 6,'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
@@ -213,7 +213,7 @@ class BpjsIntegration
         $url = $this->base_url . '/' . $this->service_name . '/' . $feature;
         $this->headers['Content-Type'] = 'Application/x-www-form-urlencoded';
         try {
-            $response = $this->client->request('PUT', $url, ['headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('PUT', $url, ['timeout' => 6,'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
@@ -230,7 +230,7 @@ class BpjsIntegration
         $url = $this->base_url . '/' . $this->service_name . '/' . $feature;
         $this->headers['Content-Type'] = 'Application/x-www-form-urlencoded';
         try {
-            $response = $this->client->request('DELETE', $url, ['headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('DELETE', $url, ['timeout' => 6,'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();

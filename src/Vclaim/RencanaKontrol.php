@@ -54,13 +54,15 @@ class RencanaKontrol extends BpjsIntegration
         return json_decode($response, true);
     }
 
-    public function dataSuratKontrol($noKartu)
+    public function dataSuratKontrol($tglAwal, $tglAkhir, $filter)
     {
-		$bln = date("m"); 
-		$thn = date("Y");
-		$formatFilter = '1';
-		
-        $response = $this->get('RencanaKontrol/ListRencanaKontrol/Bulan/'.$bln.'/Tahun/'.$thn.'/Nokartu/'.$noKartu.'/filter/'.$formatFilter);
+        $response = $this->get('RencanaKontrol/ListRencanaKontrol/tglAwal/'.$tglAwal.'/tglAkhir/'.$tglAkhir.'/filter/'.$filter);
+        return json_decode($response, true);
+    }
+	
+	public function dataSuratKontrolKartu($bln,$thn,$noKartu,$filter)
+    {
+        $response = $this->get('RencanaKontrol/ListRencanaKontrol/Bulan/'.$bln.'/Tahun/'.$thn.'/Nokartu/'.$noKartu.'/filter/'.$filter);
         return json_decode($response, true);
     }
 
