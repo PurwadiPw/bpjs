@@ -38,7 +38,7 @@ class RencanaKontrol extends BpjsIntegration
 
     public function updateSpri($data = [])
     {
-        $response = $this->post('RencanaKontrol/UpdateSPRI', $data);
+        $response = $this->put('RencanaKontrol/UpdateSPRI', $data);
         return json_decode($response, true);
     }
 

@@ -58,7 +58,12 @@ class BpjsIntegration
      * @var string
      */
     public $service_name;
-
+	
+	/**
+     * @var string
+     */
+    public $service_time_out;
+    
     /**
      * @var string
      */
@@ -147,7 +152,7 @@ class BpjsIntegration
 
     protected function decryptResponse($response)
     {
-        if (strpos($this->service_name, 'vclaim') === 0 || strpos($this->service_name, 'antreanrs') === 0) {
+        if (strpos($this->service_name, 'vclaim') === 0 || strpos($this->service_name, 'antreanrs') === 0 || strpos($this->service_name, 'ihs') === 0) {
           $responseVar = json_decode($response);
           if (isset($responseVar->response)) {
               $responseVar->response = json_decode($this->decompress($this->stringDecrypt($this->decrypt_key, $responseVar->response)), true);
@@ -176,7 +181,7 @@ class BpjsIntegration
         $this->headers['Content-Type'] = 'application/json; charset=utf-8';
 
         try {
-            $response = $this->client->request('GET', $url, ['timeout' => 6,'headers' => $this->headers])->getBody()->getContents();
+            $response = $this->client->request('GET', $url, ['timeout' => $this->service_time_out,'headers' => $this->headers])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
@@ -196,7 +201,7 @@ class BpjsIntegration
             $this->headers['Content-Type'] = $header;
         }
         try {
-            $response = $this->client->request('POST', $url, ['timeout' => 6,'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('POST', $url, ['timeout' => $this->service_time_out,'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
@@ -213,7 +218,7 @@ class BpjsIntegration
         $url = $this->base_url . '/' . $this->service_name . '/' . $feature;
         $this->headers['Content-Type'] = 'Application/x-www-form-urlencoded';
         try {
-            $response = $this->client->request('PUT', $url, ['timeout' => 6,'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('PUT', $url, ['timeout' => $this->service_time_out,'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
@@ -230,7 +235,7 @@ class BpjsIntegration
         $url = $this->base_url . '/' . $this->service_name . '/' . $feature;
         $this->headers['Content-Type'] = 'Application/x-www-form-urlencoded';
         try {
-            $response = $this->client->request('DELETE', $url, ['timeout' => 6,'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('DELETE', $url, ['timeout' => $this->service_time_out,'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
