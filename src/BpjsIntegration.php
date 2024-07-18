@@ -58,12 +58,12 @@ class BpjsIntegration
      * @var string
      */
     public $service_name;
-	
-	/**
+
+    /**
      * @var string
      */
     public $service_time_out;
-    
+
     /**
      * @var string
      */
@@ -88,6 +88,7 @@ class BpjsIntegration
      *      'user_key' => '1234567890',
      *      'base_url' => 'https://xxxxxxxxxx.xx.xx',
      *      'service_name' => 'xxxxxx-xxxx-xxx',
+     *      'service_time_out' => 6,
      * ]
      */
     public function initialize($config = [])
@@ -117,7 +118,7 @@ class BpjsIntegration
         $signature = hash_hmac('sha256', $data, $this->secret_key, true);
         $encodedSignature = base64_encode($signature);
         $this->signature = $encodedSignature;
-        
+
         //decrypt_key
         $this->decrypt_key = $this->cons_id . $this->secret_key . $this->timestamp;
         return $this;
@@ -145,6 +146,21 @@ class BpjsIntegration
         return $output;
     }
 
+    protected function stringEncrypt($key, $string)
+    {
+        $encrypt_method = 'AES-256-CBC';
+
+        // hash
+        $key_hash = hex2bin(hash('sha256', $key));
+
+        // iv - encrypt method AES-256-CBC expects 16 bytes - else you will get a warning
+        $iv = substr(hex2bin(hash('sha256', $key)), 0, 16);
+
+        $output = openssl_encrypt($string, $encrypt_method, $key_hash, 0, $iv);
+
+        return $output;
+    }
+
     protected function decompress($string)
     {
         return LZString::decompressFromEncodedURIComponent($string);
@@ -152,7 +168,7 @@ class BpjsIntegration
 
     protected function decryptResponse($response)
     {
-        if (strpos($this->service_name, 'vclaim') === 0 || strpos($this->service_name, 'antreanrs') === 0 || strpos($this->service_name, 'ihs') === 0) {
+        if (strpos($this->service_name, 'vclaim') === 0 || strpos($this->service_name, 'antreanrs') === 0 || strpos($this->service_name, 'ihs') === 0 || strpos($this->service_name, 'apotek') === 0) {
           $responseVar = json_decode($response);
           if (isset($responseVar->response)) {
               $responseVar->response = json_decode($this->decompress($this->stringDecrypt($this->decrypt_key, $responseVar->response)), true);
@@ -161,6 +177,14 @@ class BpjsIntegration
           return json_encode($responseVar);
         }
         return $response;
+    }
+
+    public function encryptGzip($data)
+    {
+        $compressed = gzcompress(json_encode($data), 9);
+        $output = $this->stringEncrypt($this->decrypt_key, $compressed);
+
+        return $output;
     }
 
     public function timeoutResponse()
@@ -177,11 +201,13 @@ class BpjsIntegration
 
     public function get($feature)
     {
+        $this->setTimestamp()->setSignature()->setHeaders();
+
         $url = $this->base_url . '/' . $this->service_name . '/' . $feature;
         $this->headers['Content-Type'] = 'application/json; charset=utf-8';
 
         try {
-            $response = $this->client->request('GET', $url, ['timeout' => $this->service_time_out,'headers' => $this->headers])->getBody()->getContents();
+            $response = $this->client->request('GET', $url, ['timeout' => (int) $this->service_time_out, 'headers' => $this->headers])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
@@ -195,13 +221,15 @@ class BpjsIntegration
 
     public function post($feature, $data = [], $header = null)
     {
+        $this->setTimestamp()->setSignature()->setHeaders();
+
         $url = $this->base_url . '/' . $this->service_name . '/' . $feature;
         $this->headers['Content-Type'] = 'Application/x-www-form-urlencoded';
         if ($header != null) {
             $this->headers['Content-Type'] = $header;
         }
         try {
-            $response = $this->client->request('POST', $url, ['timeout' => $this->service_time_out,'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('POST', $url, ['timeout' => (int) $this->service_time_out, 'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
@@ -215,10 +243,12 @@ class BpjsIntegration
 
     public function put($feature, $data = [])
     {
+        $this->setTimestamp()->setSignature()->setHeaders();
+
         $url = $this->base_url . '/' . $this->service_name . '/' . $feature;
         $this->headers['Content-Type'] = 'Application/x-www-form-urlencoded';
         try {
-            $response = $this->client->request('PUT', $url, ['timeout' => $this->service_time_out,'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('PUT', $url, ['timeout' => (int) $this->service_time_out, 'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
@@ -232,10 +262,12 @@ class BpjsIntegration
 
     public function delete($feature, $data = [])
     {
+        $this->setTimestamp()->setSignature()->setHeaders();
+
         $url = $this->base_url . '/' . $this->service_name . '/' . $feature;
         $this->headers['Content-Type'] = 'Application/x-www-form-urlencoded';
         try {
-            $response = $this->client->request('DELETE', $url, ['timeout' => $this->service_time_out,'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('DELETE', $url, ['timeout' => (int) $this->service_time_out, 'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
