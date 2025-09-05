@@ -128,6 +128,7 @@ class BpjsIntegration
     {
         date_default_timezone_set('UTC');
         $this->timestamp = strval(time() - strtotime('1970-01-01 00:00:00'));
+        date_default_timezone_set('Asia/Jakarta');
         return $this;
     }
 

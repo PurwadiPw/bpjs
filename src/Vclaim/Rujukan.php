@@ -58,7 +58,7 @@ class Rujukan extends BpjsIntegration
         $record = $multi ? 'List/' : '';
 
         if ($searchBy == 'RS') {
-            $urlSearch = 'Rujukan/RS/Peserta/'.$keyword;
+            $urlSearch = 'Rujukan/RS/'.$record.'Peserta/'.$keyword;
         } else {
             $urlSearch = 'Rujukan/'.$record.'Peserta/'.$keyword;
         }
@@ -95,9 +95,9 @@ class Rujukan extends BpjsIntegration
         return json_decode($response, true);
     }
     
-    public function listRujukanKeluarRs($tglMulai, $tglMulai)
+    public function listRujukanKeluarRs($tglMulai, $tglAkhir)
     {
-        $response = $this->get('Rujukan/Keluar/List/tglMulai/'.$tglMulai.'/tglAkhir/'.$tglMulai);
+        $response = $this->get('Rujukan/Keluar/List/tglMulai/'.$tglMulai.'/tglAkhir/'.$tglAkhir);
         return json_decode($response, true);
     }
     
