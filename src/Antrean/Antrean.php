@@ -108,13 +108,13 @@ class Antrean extends BpjsIntegration
         return json_decode($response, true);
     }
     
-    public function antreanBelumDilayani($kodebooking)
+    public function antreanAktif($kodebooking)
     {
         $response = $this->get("antrean/pendaftaran/aktif");
         return json_decode($response, true);
     }
     
-    public function antreanBelumDilayaniDetail($kodepoli, $kodedokter, $hari, $jampraktek)
+    public function antreanAktifParam($kodepoli, $kodedokter, $hari, $jampraktek)
     {
         $response = $this->get("antrean/pendaftaran/kodepoli/{$kodepoli}/kodedokter/{$kodedokter}/hari/{$hari}/jampraktek/{$jampraktek}");
         return json_decode($response, true);
