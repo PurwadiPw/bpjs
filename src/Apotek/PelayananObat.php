@@ -28,7 +28,7 @@ class PelayananObat extends BpjsIntegration
    */
   public function daftarPelayananObat($noSep)
   {
-    $response = $this->get("obat/daftar/{$noSep}");
+    $response = $this->get("pelayanan/obat/daftar/{$noSep}");
     return json_decode($response, true);
   }
 
