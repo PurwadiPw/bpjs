@@ -17,7 +17,7 @@ class PelayananObat extends BpjsIntegration
    */
   public function hapusPelayananObat($data = [])
   {
-    $response = $this->delete("pelayanan/obat/hapus/", $data);
+    $response = $this->delete("pelayanan/obat/hapus", $data);
     return json_decode($response, true);
   }
 
