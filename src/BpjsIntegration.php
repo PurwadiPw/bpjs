@@ -60,9 +60,46 @@ class BpjsIntegration
     public $service_name;
 
     /**
+     * @var int|string
+     */
+    public $service_time_out = 15;
+
+    /**
+     * @var bool|null
+     */
+    public $need_decrypt = null;
+
+    /**
+     * @var bool
+     */
+    public $log_enabled = true;
+
+    /**
+     * Format output log: 'json' (baris JSON) atau 'text' (Monolog style)
      * @var string
      */
-    public $service_time_out;
+    public $log_format = 'json';
+
+    /**
+     * Ekstensi file log ('json' atau 'log')
+     * @var string
+     */
+    public $log_file_extension = 'json';
+
+    /**
+     * @var string|null
+     */
+    public $log_dir = null;
+
+    /**
+     * @var string|null
+     */
+    public $log_file = null;
+
+    /**
+     * @var string
+     */
+    public $log_file_prefix = 'bpjs-bridging-';
 
     /**
      * @var string
@@ -89,6 +126,13 @@ class BpjsIntegration
      *      'base_url' => 'https://xxxxxxxxxx.xx.xx',
      *      'service_name' => 'xxxxxx-xxxx-xxx',
      *      'service_time_out' => 6,
+     *      'need_decrypt' => true, // optional (default: auto detect via service_name)
+     *      'log_enabled' => true,
+     *      'log_format' => 'json', // 'json' or 'text'
+     *      'log_file_extension' => 'json', // 'json' or 'log'
+     *      'log_dir' => '/path/to/log',
+     *      'log_file' => 'custom.json', // optional
+     *      'log_file_prefix' => 'bpjs-bridging-', // optional
      * ]
      */
     public function initialize($config = [])
@@ -169,14 +213,37 @@ class BpjsIntegration
 
     protected function decryptResponse($response)
     {
-        if (strpos($this->service_name, 'vclaim') === 0 || strpos($this->service_name, 'antreanrs') === 0 || strpos($this->service_name, 'ihs') === 0 || strpos($this->service_name, 'wsihs') === 0 || strpos($this->service_name, 'apotek') === 0) {
-          $responseVar = json_decode($response);
-          if (isset($responseVar->response)) {
-              $responseVar->response = json_decode($this->decompress($this->stringDecrypt($this->decrypt_key, $responseVar->response)), true);
-          }
-
-          return json_encode($responseVar);
+        if (empty($response) || !is_string($response)) {
+            return $response;
         }
+
+        if ($this->need_decrypt !== null) {
+            $shouldDecrypt = (bool) $this->need_decrypt;
+        } else {
+            $prefix = strtok(strtolower((string) $this->service_name), '-_');
+            $shouldDecrypt = in_array($prefix, ['vclaim', 'antreanrs', 'ihs', 'wsihs', 'apotek'], true);
+        }
+
+        if ($shouldDecrypt) {
+            $responseVar = json_decode($response);
+            if (!is_object($responseVar)) {
+                return $response;
+            }
+
+            if (isset($responseVar->response) && is_string($responseVar->response) && trim($responseVar->response) !== '') {
+                $decrypted = $this->stringDecrypt($this->decrypt_key, $responseVar->response);
+                if ($decrypted !== false && $decrypted !== null) {
+                    $decompressed = $this->decompress($decrypted);
+                    if ($decompressed !== false && $decompressed !== null) {
+                        $jsonDecoded = json_decode($decompressed, true);
+                        $responseVar->response = ($jsonDecoded !== null) ? $jsonDecoded : $decompressed;
+                    }
+                }
+            }
+
+            return json_encode($responseVar);
+        }
+
         return $response;
     }
 
@@ -207,16 +274,28 @@ class BpjsIntegration
         $url = $this->base_url . '/' . $this->service_name . '/' . $feature;
         $this->headers['Content-Type'] = 'application/json; charset=utf-8';
 
+        $response = null;
+        $error = null;
+        $startTime = microtime(true);
+        $timeout = (!empty($this->service_time_out) && (int) $this->service_time_out > 0) ? (int) $this->service_time_out : 15;
+
         try {
-            $response = $this->client->request('GET', $url, ['timeout' => (int) $this->service_time_out, 'headers' => $this->headers])->getBody()->getContents();
+            $response = $this->client->request('GET', $url, ['timeout' => $timeout, 'headers' => $this->headers])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
+            $error = $e->getMessage();
         } catch (RequestException $e) {
             $response = $this->timeoutResponse();
-        } catch (Exception $e) {
-            $response = $e->getResponse()->getBody();
+            $error = $e->getMessage();
+        } catch (\Exception $e) {
+            $response = $e->getResponse() ? (string) $e->getResponse()->getBody() : $this->timeoutResponse();
+            $error = $e->getMessage();
+        } finally {
+            $durationMs = round((microtime(true) - $startTime) * 1000, 2);
+            $this->writeBpjsBridgeLog('get', $url, null, $response, $durationMs, $error);
         }
+
         return $response;
     }
 
@@ -226,19 +305,33 @@ class BpjsIntegration
 
         $url = $this->base_url . '/' . $this->service_name . '/' . $feature;
         $this->headers['Content-Type'] = 'Application/x-www-form-urlencoded';
+
         if ($header != null) {
             $this->headers['Content-Type'] = $header;
         }
+
+        $response = null;
+        $error = null;
+        $startTime = microtime(true);
+        $timeout = (!empty($this->service_time_out) && (int) $this->service_time_out > 0) ? (int) $this->service_time_out : 15;
+
         try {
-            $response = $this->client->request('POST', $url, ['timeout' => (int) $this->service_time_out, 'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('POST', $url, ['timeout' => $timeout, 'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
+            $error = $e->getMessage();
         } catch (RequestException $e) {
             $response = $this->timeoutResponse();
-        } catch (Exception $e) {
-            $response = $e->getResponse()->getBody();
+            $error = $e->getMessage();
+        } catch (\Exception $e) {
+            $response = $e->getResponse() ? (string) $e->getResponse()->getBody() : $this->timeoutResponse();
+            $error = $e->getMessage();
+        } finally {
+            $durationMs = round((microtime(true) - $startTime) * 1000, 2);
+            $this->writeBpjsBridgeLog('post', $url, $data, $response, $durationMs, $error);
         }
+
         return $response;
     }
 
@@ -248,16 +341,29 @@ class BpjsIntegration
 
         $url = $this->base_url . '/' . $this->service_name . '/' . $feature;
         $this->headers['Content-Type'] = 'Application/x-www-form-urlencoded';
+
+        $response = null;
+        $error = null;
+        $startTime = microtime(true);
+        $timeout = (!empty($this->service_time_out) && (int) $this->service_time_out > 0) ? (int) $this->service_time_out : 15;
+
         try {
-            $response = $this->client->request('PUT', $url, ['timeout' => (int) $this->service_time_out, 'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('PUT', $url, ['timeout' => $timeout, 'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
+            $error = $e->getMessage();
         } catch (RequestException $e) {
             $response = $this->timeoutResponse();
-        } catch (Exception $e) {
-            $response = $e->getResponse()->getBody();
+            $error = $e->getMessage();
+        } catch (\Exception $e) {
+            $response = $e->getResponse() ? (string) $e->getResponse()->getBody() : $this->timeoutResponse();
+            $error = $e->getMessage();
+        } finally {
+            $durationMs = round((microtime(true) - $startTime) * 1000, 2);
+            $this->writeBpjsBridgeLog('put', $url, $data, $response, $durationMs, $error);
         }
+
         return $response;
     }
 
@@ -267,16 +373,129 @@ class BpjsIntegration
 
         $url = $this->base_url . '/' . $this->service_name . '/' . $feature;
         $this->headers['Content-Type'] = 'Application/x-www-form-urlencoded';
+
+        $response = null;
+        $error = null;
+        $startTime = microtime(true);
+        $timeout = (!empty($this->service_time_out) && (int) $this->service_time_out > 0) ? (int) $this->service_time_out : 15;
+
         try {
-            $response = $this->client->request('DELETE', $url, ['timeout' => (int) $this->service_time_out, 'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('DELETE', $url, ['timeout' => $timeout, 'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
+            $error = $e->getMessage();
         } catch (RequestException $e) {
             $response = $this->timeoutResponse();
-        } catch (Exception $e) {
-            $response = $e->getResponse()->getBody();
+            $error = $e->getMessage();
+        } catch (\Exception $e) {
+            $response = $e->getResponse() ? (string) $e->getResponse()->getBody() : $this->timeoutResponse();
+            $error = $e->getMessage();
+        } finally {
+            $durationMs = round((microtime(true) - $startTime) * 1000, 2);
+            $this->writeBpjsBridgeLog('delete', $url, $data, $response, $durationMs, $error);
         }
+
         return $response;
+    }
+
+    protected function writeBpjsBridgeLog($functionName, $url, $requestData = null, $response = null, $durationMs = null, $error = null)
+    {
+        if (!$this->log_enabled) {
+            return false;
+        }
+
+        $now = new \DateTime('now', new \DateTimeZone('Asia/Jakarta'));
+
+        $logDir = $this->log_dir;
+        if (!empty($this->log_file) && (strpos($this->log_file, '/') === 0 || preg_match('/^[A-Za-z]:[\\\\\/]/', $this->log_file))) {
+            $logFile = $this->log_file;
+            $logDir = dirname($logFile);
+        } else {
+            if (empty($logDir)) {
+                $logDir = getenv('BPJS_LOG_DIR') ?: (sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'bpjs-log');
+            }
+            $logDir = rtrim($logDir, '/\\');
+
+            if (!empty($this->log_file)) {
+                $logFile = $logDir . DIRECTORY_SEPARATOR . ltrim($this->log_file, '/\\');
+            } else {
+                $prefix = !empty($this->log_file_prefix) ? $this->log_file_prefix : 'bpjs-bridging-';
+                $ext = !empty($this->log_file_extension) ? ltrim($this->log_file_extension, '.') : 'json';
+                $logFile = $logDir . DIRECTORY_SEPARATOR . $prefix . $now->format('Y-m-d') . '.' . $ext;
+            }
+        }
+
+        if (!is_dir($logDir)) {
+            @mkdir($logDir, 0755, true);
+        }
+
+        if (!is_dir($logDir) || !is_writable($logDir)) {
+            return false;
+        }
+
+        $forwarded = $this->getServerHeader('X-Forwarded-For');
+        $realIp = $this->getServerHeader('X-Real-IP');
+        $remoteAddr = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : null;
+
+        $ips = $this->extractClientIps($forwarded, $remoteAddr);
+
+        $decodedResponse = is_string($response) ? json_decode($response, true) : $response;
+
+        $payload = [
+            'timestamp' => $now->format('Y-m-d H:i:s'),
+            'function' => $functionName,
+            'url' => $url,
+            'duration_ms' => $durationMs,
+            'error' => $error,
+            'request' => $requestData,
+            'response' => ($decodedResponse !== null) ? $decodedResponse : $response,
+            'ip' => count($ips) > 0 ? $ips[0] : $remoteAddr,
+            'ips' => $ips,
+            'forwarded' => $forwarded,
+            'real_ip' => $realIp,
+        ];
+
+        if ($this->log_format === 'text') {
+            $line = '[' . $now->format('Y-m-d H:i:s') . '] bpjs.INFO: ' . json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL;
+        } else {
+            $line = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . PHP_EOL;
+        }
+
+        return @file_put_contents($logFile, $line, FILE_APPEND | LOCK_EX) !== false;
+    }
+
+    protected function getServerHeader($headerName)
+    {
+        $serverKey = 'HTTP_' . strtoupper(str_replace('-', '_', $headerName));
+
+        if (isset($_SERVER[$serverKey])) {
+            return $_SERVER[$serverKey];
+        }
+
+        return null;
+    }
+
+    protected function extractClientIps($forwarded, $remoteAddr)
+    {
+        $ips = [];
+
+        if (!empty($forwarded)) {
+            $forwardedIps = explode(',', $forwarded);
+
+            foreach ($forwardedIps as $ip) {
+                $ip = trim($ip);
+
+                if ($ip !== '') {
+                    $ips[] = $ip;
+                }
+            }
+        }
+
+        if (!empty($remoteAddr) && !in_array($remoteAddr, $ips)) {
+            $ips[] = $remoteAddr;
+        }
+
+        return $ips;
     }
 }
