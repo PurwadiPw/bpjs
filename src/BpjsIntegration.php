@@ -60,9 +60,16 @@ class BpjsIntegration
     public $service_name;
 
     /**
+     * Timeout request (total transfer) dalam detik
      * @var int|string
      */
     public $service_time_out = 15;
+
+    /**
+     * Timeout koneksi awal (TCP/DNS handshake) dalam detik
+     * @var int|float
+     */
+    public $connect_time_out = 5;
 
     /**
      * @var bool|null
@@ -110,8 +117,6 @@ class BpjsIntegration
     {
         $this->client = new Client([
             'verify' => false,
-            // 'timeout' => 1,
-            // 'connect_timeout' => 15,
             'http_errors' => false,
         ]);
     }
@@ -125,7 +130,8 @@ class BpjsIntegration
      *      'user_key' => '1234567890',
      *      'base_url' => 'https://xxxxxxxxxx.xx.xx',
      *      'service_name' => 'xxxxxx-xxxx-xxx',
-     *      'service_time_out' => 6,
+     *      'service_time_out' => 15,
+     *      'connect_time_out' => 5, // optional (default: 5)
      *      'need_decrypt' => true, // optional (default: auto detect via service_name)
      *      'log_enabled' => true,
      *      'log_format' => 'json', // 'json' or 'text'
@@ -278,9 +284,14 @@ class BpjsIntegration
         $error = null;
         $startTime = microtime(true);
         $timeout = (!empty($this->service_time_out) && (int) $this->service_time_out > 0) ? (int) $this->service_time_out : 15;
+        $connectTimeout = (!empty($this->connect_time_out) && (float) $this->connect_time_out > 0) ? (float) $this->connect_time_out : 5;
 
         try {
-            $response = $this->client->request('GET', $url, ['timeout' => $timeout, 'headers' => $this->headers])->getBody()->getContents();
+            $response = $this->client->request('GET', $url, [
+                'timeout' => $timeout,
+                'connect_timeout' => $connectTimeout,
+                'headers' => $this->headers,
+            ])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
@@ -314,9 +325,15 @@ class BpjsIntegration
         $error = null;
         $startTime = microtime(true);
         $timeout = (!empty($this->service_time_out) && (int) $this->service_time_out > 0) ? (int) $this->service_time_out : 15;
+        $connectTimeout = (!empty($this->connect_time_out) && (float) $this->connect_time_out > 0) ? (float) $this->connect_time_out : 5;
 
         try {
-            $response = $this->client->request('POST', $url, ['timeout' => $timeout, 'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('POST', $url, [
+                'timeout' => $timeout,
+                'connect_timeout' => $connectTimeout,
+                'headers' => $this->headers,
+                'json' => $data,
+            ])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
@@ -346,9 +363,15 @@ class BpjsIntegration
         $error = null;
         $startTime = microtime(true);
         $timeout = (!empty($this->service_time_out) && (int) $this->service_time_out > 0) ? (int) $this->service_time_out : 15;
+        $connectTimeout = (!empty($this->connect_time_out) && (float) $this->connect_time_out > 0) ? (float) $this->connect_time_out : 5;
 
         try {
-            $response = $this->client->request('PUT', $url, ['timeout' => $timeout, 'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('PUT', $url, [
+                'timeout' => $timeout,
+                'connect_timeout' => $connectTimeout,
+                'headers' => $this->headers,
+                'json' => $data,
+            ])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
@@ -378,9 +401,15 @@ class BpjsIntegration
         $error = null;
         $startTime = microtime(true);
         $timeout = (!empty($this->service_time_out) && (int) $this->service_time_out > 0) ? (int) $this->service_time_out : 15;
+        $connectTimeout = (!empty($this->connect_time_out) && (float) $this->connect_time_out > 0) ? (float) $this->connect_time_out : 5;
 
         try {
-            $response = $this->client->request('DELETE', $url, ['timeout' => $timeout, 'headers' => $this->headers, 'json' => $data])->getBody()->getContents();
+            $response = $this->client->request('DELETE', $url, [
+                'timeout' => $timeout,
+                'connect_timeout' => $connectTimeout,
+                'headers' => $this->headers,
+                'json' => $data,
+            ])->getBody()->getContents();
             $response = $this->decryptResponse($response);
         } catch (ClientException $e) {
             $response = $this->timeoutResponse();
